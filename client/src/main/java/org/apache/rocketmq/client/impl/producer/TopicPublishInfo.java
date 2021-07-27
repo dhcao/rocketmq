@@ -66,7 +66,13 @@ public class TopicPublishInfo {
         this.haveTopicRouterInfo = haveTopicRouterInfo;
     }
 
+    /**
+     * 随机选一个。其实也不算全随机
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
+        // 如果没有上次的broker作为参考，就随机一个
         if (lastBrokerName == null) {
             return selectOneMessageQueue();
         } else {

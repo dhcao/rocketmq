@@ -62,6 +62,11 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         this.faultItemTable.remove(name);
     }
 
+    /**
+     * 至少选一个.....
+     * 就是排序后选择时间最合适的吧，根据FaultItem的实现可以看到sort之后就是根据延迟时间排序的。
+     * @return
+     */
     @Override
     public String pickOneAtLeast() {
         final Enumeration<FaultItem> elements = this.faultItemTable.elements();

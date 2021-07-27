@@ -505,6 +505,11 @@ public class MQClientAPIImpl {
         return this.processSendResponse(brokerName, msg, response,addr);
     }
 
+    /**
+     * 异步发送消息...
+     * @throws InterruptedException
+     * @throws RemotingException
+     */
     private void sendMessageAsync(
         final String addr,
         final String brokerName,
@@ -607,6 +612,7 @@ public class MQClientAPIImpl {
                 retryBrokerName);
             try {
                 request.setOpaque(RemotingCommand.createNewRequestId());
+                // 这又开始往回调用了么 -- 套娃？
                 sendMessageAsync(addr, retryBrokerName, msg, timeoutMillis, request, sendCallback, topicPublishInfo, instance,
                     timesTotal, curTimes, context, producer);
             } catch (InterruptedException e1) {

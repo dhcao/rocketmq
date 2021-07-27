@@ -26,6 +26,7 @@ public class MQFaultStrategy {
     private final static InternalLogger log = ClientLogger.getLog();
     private final LatencyFaultTolerance<String> latencyFaultTolerance = new LatencyFaultToleranceImpl();
 
+    /** 发送延迟容错开关。 如果打开，会根据容错机制选择队列 */
     private boolean sendLatencyFaultEnable = false;
 
     private long[] latencyMax = {50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L};
@@ -55,19 +56,35 @@ public class MQFaultStrategy {
         this.sendLatencyFaultEnable = sendLatencyFaultEnable;
     }
 
+    /**
+     *  选择一个合适的队列
+     * @param tpInfo
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) {
+            // 容错开关打开时
             try {
+
+                // 1. 获取一个序号
                 int index = tpInfo.getSendWhichQueue().incrementAndGet();
+
+                // 2. 遍历在所有队列中选择一个broker
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
+
+                    // 2.1 对index取模，在取出pos对应位置的队列名称
                     int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size();
                     if (pos < 0)
                         pos = 0;
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
+
+                    // 2.2 如果该mq中保留的broker的延迟可以接受，那就选它了
                     if (latencyFaultTolerance.isAvailable(mq.getBrokerName()))
                         return mq;
                 }
 
+                // 3. 如果第2补没有选中合适的broker。那就选一个较为合适的：延迟最小的
                 final String notBestBroker = latencyFaultTolerance.pickOneAtLeast();
                 int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker);
                 if (writeQueueNums > 0) {
@@ -84,9 +101,11 @@ public class MQFaultStrategy {
                 log.error("Error occurred when selecting message queue", e);
             }
 
+            // 4. 随机选一个吧....
             return tpInfo.selectOneMessageQueue();
         }
 
+        // 5. 如果开关关着，就直接随机 -- 看实现也不是全随机
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 
