@@ -34,9 +34,17 @@ import org.apache.rocketmq.remoting.protocol.LanguageCode;
  */
 public class ClientConfig {
     public static final String SEND_MESSAGE_WITH_VIP_CHANNEL_PROPERTY = "com.rocketmq.sendMessageWithVIPChannel";
+
+    // Mq集群的namesrv地址
     private String namesrvAddr = NameServerAddressUtils.getNameServerAddresses();
+
+    // 客户端ip
     private String clientIP = RemotingUtil.getLocalAddress();
+
+    // 客户单实例名，正常获取 配置：rocket.client.name。获取不到时叫default -- 奇葩
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
+
+    // netty 通信层回调线程的个数，默认当前cpu有效个数
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
     protected String namespace;
     protected AccessChannel accessChannel = AccessChannel.LOCAL;

@@ -186,14 +186,18 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public void start(final boolean startFactory) throws MQClientException {
         switch (this.serviceState) {
             case CREATE_JUST:
+                // 1. 启动时，先把状态置为失败：具体原因是 防止启动过程中暴露出一个不完全的服务状态
                 this.serviceState = ServiceState.START_FAILED;
 
+                // 2. 好像只校验了个produceGroup，这个必须得设置。
                 this.checkConfig();
 
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
+                    // 3. 看是否有必要将instanceName改为pid
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
 
+                // 4. 直接获取/或者创建一个MQ客户端...我们去看看具体的创建过程吧。
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
 
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
@@ -602,6 +606,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
                         endTimestamp = System.currentTimeMillis();
+
+                        // 发送完消息后，更新当前broker的延迟情况
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
                         switch (communicationMode) {
                             case ASYNC:
@@ -609,6 +615,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             case ONEWAY:
                                 return null;
                             case SYNC:
+
+                                // 同步情况下，如果允许重试，才继续走 ？
                                 if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
                                     if (this.defaultMQProducer.isRetryAnotherBrokerWhenNotStoreOK()) {
                                         continue;
@@ -922,15 +930,22 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return mQClientFactory;
     }
 
+    // 看名字就是尝试压缩消息
     private boolean tryToCompressMessage(final Message msg) {
+
+        // 1. 批量的不压缩
         if (msg instanceof MessageBatch) {
             //batch dose not support compressing right now
             return false;
         }
         byte[] body = msg.getBody();
         if (body != null) {
+
+            // 2. 如果消息体长度达到设定值
             if (body.length >= this.defaultMQProducer.getCompressMsgBodyOverHowmuch()) {
                 try {
+
+                    // 3. 进行了zip压缩
                     byte[] data = UtilAll.compress(body, zipCompressLevel);
                     if (data != null) {
                         msg.setBody(data);
