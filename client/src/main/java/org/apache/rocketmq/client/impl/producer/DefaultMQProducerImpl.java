@@ -183,6 +183,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.start(true);
     }
 
+    /**
+     * 这里维护状态机的一部分
+     * @param startFactory
+     * @throws MQClientException
+     */
     public void start(final boolean startFactory) throws MQClientException {
         switch (this.serviceState) {
             case CREATE_JUST:
@@ -200,8 +205,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 // 4. 直接获取/或者创建一个MQ客户端...我们去看看具体的创建过程吧。
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
 
+                // 5. 这个就是放到table里面去的么；；感觉不会失败来着
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
                 if (!registerOK) {
+
+                    // 6. 如果注册失败，就充值client的状态。结束....
                     this.serviceState = ServiceState.CREATE_JUST;
                     throw new MQClientException("The producer group[" + this.defaultMQProducer.getProducerGroup()
                         + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
@@ -210,6 +218,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
+                // 7. 启动mq client：各种定时任务，各种前置服务启动
                 if (startFactory) {
                     mQClientFactory.start();
                 }
